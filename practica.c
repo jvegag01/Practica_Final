@@ -62,8 +62,8 @@ int main(){
     clientes=(struct cliente *)malloc(sizeof(struct cliente)*20);
     recepcionistas=(struct recepcionista *)malloc(sizeof(struct recepcionista)*3);
     maquinasCheckIn=(int*)malloc(sizeof(int)*5);
-
-    for(int i=0;i<20;i++){              // Inicializa las listas de clientes, máquinas check-in y recepcionistas.
+    int i;
+    for(i=0;i<20;i++){              // Inicializa las listas de clientes, máquinas check-in y recepcionistas.
         if(i<5){
             if(i<3){
                 recepcionistas[i].clientesAtendidos=0;
@@ -124,10 +124,22 @@ void nuevoCliente(){
         nuevoCliente.ascensor=0;
         pthread_create(&hiloCliente,NULL,accionesCliente,NULL);
     }
+    pthread_mutex_unlock(&colaClientes);
 }
 
 void *accionesCliente(){
+	writeLogMessage();
+	if(cliente.tipo == 2){	//Comprobamos si el cliente va a maquinas o no
+		pthread_mutex_lock(&maquinas);
+		int i;
+		for(i = 0; i < 5; i++){
+			if(maquinasCheckIn[i] == 0){	//Comprueba si hay maquina libre
+				maquinasCheckIn[i] = 1;
+				pthread_mutex_unlock(&maquinas);
+				sleep(6);
+				 
 
+	
 }
 
 
