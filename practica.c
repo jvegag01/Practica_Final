@@ -31,6 +31,7 @@ void clienteNormal();
 void clienteVip();
 void terminar();
 void writeLogMessage(char *id, char *msg);
+boolean posibilidad(int min, int max, int posibilidad);
 
 void *HiloRecepcionista(){       // PENDIENTE
 
@@ -127,9 +128,11 @@ void nuevoCliente(){
     pthread_mutex_unlock(&colaClientes);
 }
 
-void *accionesCliente(){
+void *accionesCliente(int pos){
+	pthread_mutex_lock(&fichero);
 	writeLogMessage();
-	if(cliente.tipo == 2){	//Comprobamos si el cliente va a maquinas o no
+	pthread_mutex_unlock(&fichero);
+	if(clientes[pos].tipo == 2){	//Comprobamos si el cliente va a maquinas o no
 		pthread_mutex_lock(&maquinas);
 		int i;
 		for(i = 0; i < 5; i++){
@@ -137,9 +140,50 @@ void *accionesCliente(){
 				maquinasCheckIn[i] = 1;
 				pthread_mutex_unlock(&maquinas);
 				sleep(6);
-				 
-
-	
+				boolean ascensor = posibilidad(0, 10, 3);	//Comprueba si va a ascensores	 
+				if(ascensor == true){	//Va a ascensor
+				
+				}else{	//Marcha
+					pthread_mutex_lock(&fichero);
+					writeLogMessage();	//Escribe que se va
+					pthread_mutex_unlock(&fichero);
+					pthread_exit(NULL);
+					pthread_mutex_lock(&colaClientes);
+					nClientes--;
+					pthread_mutex_unlock(&colaClientes);
+				}
+			}
+		}	//No hay maquina libre
+		pthread_mutex_unlock(&maquinas);
+		sleep(3);
+		boolean sigue = posibilidad(0,1, 0);
+		if(sigue == true){	//Se queda en maquinas
+				
+		}
+	}else{	//No va a maquinas
+		pthread_mutex_lock(&colaClientes);
+		int atendido = 0;
+		while(atendido == 0){	
+			atendido = clientes[pos].atendido;
+			if(atendido == 0){	//No esta siendo atendido
+				//Comportamiento  
+			}else{	//No esta siendo atendido
+				//Bucle mientras esta siendo atendido
+				boolean ascensor = posibilidad(0,10, 3);
+				if(ascensor == true){	//Va a ascensor
+					
+				}else{	//No va a ascensor
+					pthread_mutex_lock(&colaClientes);
+					nClientes--;		//Se marcha el cliente
+					pthread_mutex_unlock(&colaClientes);
+					pthread_mutex_lock(&fichero);
+					writeLogMessage();	//Escribe en el log
+					pthread_mutex_unlock(&fichero);
+					pthread_exit(NULL);
+				}
+			}
+		}
+	}
 }
 
 
@@ -185,4 +229,12 @@ void writeLogMessage(char *id, char *msg){
     logFile= fopen("logs.txt","a");
     fprintf(logFile, "[%s] %s: %s\n",stnow,id,msg);
     fclose(logFile);
+}
+
+boolean posibilidad(int min, int max, int posibilidad){
+	int num = rand() % (max-min+1) +min;
+	if(num > posibilidad){
+		return false;
+	}
+	return true;
 }
