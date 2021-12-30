@@ -31,6 +31,8 @@ void clienteNormal();
 void clienteVip();
 void terminar();
 void writeLogMessage(char *id, char *msg);
+void cogeAscensor(int pos);
+int posibilidad2(int posibilidad1, int posibilidad2);
 
 void *HiloRecepcionista(){       // PENDIENTE
 
@@ -149,8 +151,7 @@ void *accionesCliente(int pos){
 				sleep(6);
 				if(calculaAleatorios(30)==1){	//Comprueba si va a ascensores
 				// Va a ascensores
-
-
+				cogeAscensor(pos);	
 				}else{	//Marcha
 					pthread_mutex_lock(&fichero);
 					writeLogMessage(pos+1,"El cliente se marcha");	//Escribe que se va
@@ -167,27 +168,55 @@ void *accionesCliente(int pos){
 
 		pthread_mutex_unlock(&maquinas);
 		sleep(3);
-		if(calculaAleatorios(50) == 1){	//SE VA A RECEPCIÓN NORMAL
-				
-		}else{  // SE QUEDA EN MÁQUINAS
-
-        }
+		if(calculaAleatorios(50) == 1){	//Se queda en maquinas 
+			accionesCliente(pos);	
+      		}else{
+			pthread_mutex_lock(&colaClientes);
+			clientes[pos].tipo=0;
+		}
 	}else{	//No va a maquinas
 		pthread_mutex_lock(&colaClientes);
-		int atendido = 0;
-		while(atendido == 0){	
-			atendido = clientes[pos].atendido;
-			if(atendido == 0){	//No esta siendo atendido
-				//Comportamiento  
+		while(clientes[pos].atendido == 0){	
+			if(clientes[pos].atendido == 0){	//No esta siendo atendido
+				//Comportamiento
+				int destino = posibilidad2(20, 10);  
+				if(destino == 1){
+					//Va a maquinas
+				}else if(destino == 2){
+					//Se marcha
+                     			clientes[pos].id=0;
+                     			nClientes--;            //Se marcha el cliente
+                      			pthread_mutex_unlock(&colaClientes);
+                       			pthread_mutex_lock(&fichero);
+                       			writeLogMessage(pos+1,"El cliente se marcha");  //Escribe en el log
+            			        pthread_mutex_unlock(&fichero);
+             			        pthread_exit(NULL);
+				}else{
+					if(calculaAleatorios(5)==1){
+						//Se va al baño
+			                       	 clientes[pos].id=0;
+                       				 nClientes--;            //Se marcha el cliente
+               				      	 pthread_mutex_unlock(&colaClientes);
+         			              	 pthread_mutex_lock(&fichero);
+                 			      	 writeLogMessage(pos+1,"El cliente se marcha");  //Escribe en el log
+                      			      	 pthread_mutex_unlock(&fichero);
+                   			     	  pthread_exit(NULL);
+					}else{
+						pthread_mutex_unlock(&colaClientes);
+						sleep(3);
+						//Va a no va a maquinas	
+					}
+				}
 			}else{
 
-                if(atendido==1){
+                if(clientes[pos].atendido==1){
                     //Bucle mientras esta siendo atendido
                 }
 
-                if(atendido==2){    // Ya ha sido atendido
-                    if(posibilidad(30)==1){
+                if(clientes[pos].atendido==2){    // Ya ha sido atendido
+                    if(calculaAleatorios(30)==1){
                         // Va a ascensor
+			cogeAscensor(pos);
                     }else{
                         //No va a ascensor
                         pthread_mutex_lock(&colaClientes);
@@ -238,6 +267,18 @@ int calculaAleatorios(int probabilidad) {
     return 0;
 }
 
+int posibilidad2(int posibilidad1, int posibilidad2){
+	srand(time(NULL));
+	int variable = rand() % (100-1+1)+1;
+	if(variable <= posibilidad1){
+		return 1;
+	}else if(variable <= posibilidad2){
+		return 2;
+	}else{
+		return 0;
+	}
+}
+
 void writeLogMessage(char *id, char *msg){
     //Calcula la hora actual
     time_t now=time(0);
@@ -248,4 +289,37 @@ void writeLogMessage(char *id, char *msg){
     logFile= fopen("logs.txt","a");
     fprintf(logFile, "[%s] %s: %s\n",stnow,id,msg);
     fclose(logFile);
+}
+
+void cogeAscensor(int pos){
+	pthread_mutex_lock(&colaClientes);
+	clientes[pos].ascensor = 1;
+	pthread_mutex_lock(&colaClientes);
+	pthread_mutex_lock(&ascensor);
+	if(estadoAscensor == 1){	//El ascensor esta funcionando
+		pthread_mutex_unlock(&ascensor);
+		sleep(3);
+		writeLogMessage(pos+1, "El cliente espera en el ascensor");
+		cogeAscensor(pos);		
+	}else{	//El ascensor no esta funcionando
+		nAscensor++;
+		writeLogMessage(pos+1, "El cliente entra en el ascensor");
+		if(nAscensor<6){	//Todavia no esta lleno
+					//Falta terminar
+		}else{	//esta lleno
+			srand(time(NULL));
+			int tiempo = rand() % (6-3+1) + 3;
+			sleep(tiempo);
+					//Falta terminar			
+		}
+		pthread_mutex_lock(&colaClientes);
+                clientes[pos].id=0;
+                nClientes--;            //Se marcha el cliente
+                pthread_mutex_unlock(&colaClientes);
+                pthread_mutex_lock(&fichero);
+                writeLogMessage(pos+1,"El cliente se marcha");  //Escribe en el log
+                pthread_mutex_unlock(&fichero);
+                pthread_exit(NULL);
+
+	}
 }
