@@ -34,8 +34,20 @@ void writeLogMessage(char *id, char *msg);
 void cogeAscensor(int pos);
 int posibilidad2(int posibilidad1, int posibilidad2);
 
-void *HiloRecepcionista(){       // PENDIENTE
-
+void *HiloRecepcionista(){  // PENDIENTE
+    int i;     
+    pthread_mutex_lock(&colaClientes);
+    while(clientes[i].id==0 && i<20 || clientes[i].id!=0 && i<20 && clientes[i].atendido!=0){
+        i++;
+    }
+    pthread_mutex_unlock(&colaClientes);
+    if(i==20){
+        sleep(1);
+        HiloRecepcionista();
+    }
+    pthread_mutex_lock(&colaClientes);
+    clientes[i].atendido=1;
+    pthread_mutex_unlock(&colaClientes);
 }
 
 
@@ -272,7 +284,7 @@ int posibilidad2(int posibilidad1, int posibilidad2){
 	int variable = rand() % (100-1+1)+1;
 	if(variable <= posibilidad1){
 		return 1;
-	}else if(variable <= posibilidad2){
+	}else if(variable <= posibilidad2+posibilidad1){
 		return 2;
 	}else{
 		return 0;
