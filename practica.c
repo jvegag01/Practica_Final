@@ -299,17 +299,24 @@ void cogeAscensor(int pos){
 	if(estadoAscensor == 1){	//El ascensor esta funcionando
 		pthread_mutex_unlock(&ascensor);
 		sleep(3);
-		writeLogMessage(pos+1, "El cliente espera en el ascensor");
+		pthread_mutex_lock(&fichero);
+		writeLogMessage(pos+1, "El cliente espera al ascensor");
+		pthread_mutex_unlock(&fichero);
 		cogeAscensor(pos);		
 	}else{	//El ascensor no esta funcionando
 		nAscensor++;
+		pthread_mutex_lock(&fichero);
 		writeLogMessage(pos+1, "El cliente entra en el ascensor");
+		pthread_mutex_unlock(&fichero);
 		if(nAscensor<6){	//Todavia no esta lleno
 					//Falta terminar
 		}else{	//esta lleno
 			srand(time(NULL));
 			int tiempo = rand() % (6-3+1) + 3;
 			sleep(tiempo);
+			pthread_mutex_lock(&fichero);
+			writeLogMessage(pos+1, "El cliente sale del ascensor");
+			pthread_mutex_unlock(&fichero);
 					//Falta terminar			
 		}
 		pthread_mutex_lock(&colaClientes);
