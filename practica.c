@@ -35,20 +35,79 @@ void writeLogMessage(char *id, char *msg);
 void cogeAscensor(int pos);
 int posibilidad2(int posibilidad1, int posibilidad2);
 
-void *HiloRecepcionista(){  // PENDIENTE
-    int i;     
+void *HiloRecepcionista(void *arg){ 
+    int i=0,atencion,tiempo;  
+    int type=(int *)arg;
+
     pthread_mutex_lock(&colaClientes);
-    while(clientes[i].id==0 && i<20 || clientes[i].id!=0 && i<20 && clientes[i].atendido!=0){
-        i++;
+
+    if(recepcionista[type].tipo=0){
+        while(clientes[i].id==0 && i<20 || clientes[i].id!=0 && i<20 && clientes[i].atendido!=0 || clientes[i].id!=0 && i<20 && clientes[i].tipo!=0){
+            i++;
+        }
+    }else{
+        while(clientes[i].id==0 && i<20 || clientes[i].id!=0 && i<20 && clientes[i].atendido!=0 || clientes[i].id!=0 && i<20 && clientes[i].tipo!=1){
+            i++;
+        }
     }
+
     pthread_mutex_unlock(&colaClientes);
     if(i==20){
         sleep(1);
-        HiloRecepcionista();
+        HiloRecepcionista(type);
     }
     pthread_mutex_lock(&colaClientes);
     clientes[i].atendido=1;
     pthread_mutex_unlock(&colaClientes);
+
+    atencion = posibilidad2(10, 10);
+    if(atencion=1){
+        tiempo=calculaAleatorios(2,6);
+    }else if(atencion=2){
+        tiempo=calculaAleatorios(6,10);
+    }else{
+        tiempo=calculaAleatorios(1,4);
+    }
+
+    pthread_mutex_lock(&fichero);
+	writeLogMessage(i,"Se comienza a atender al cliente");
+	pthread_mutex_unlock(&fichero);
+
+    sleep(tiempo);
+
+    pthread_mutex_lock(&fichero);
+	writeLogMessage(i,"Ha finalizado la atención");
+    if(atencion=1){
+        writeLogMessage(i,"La atención ha finalizado y el cliente estaba mal identificado");
+    }else if(atencion=2){
+        writeLogMessage(i,"La atención ha finalizado y el cliente no tiene el pasaporte vacunal");
+    }else{
+        writeLogMessage(i,"La atención ha finalizado y el cliente tiene todo en regla");
+    }
+	pthread_mutex_unlock(&fichero);
+
+    pthread_mutex_lock(&colaClientes);
+    clientes[i].atendido=2;
+    pthread_mutex_unlock(&colaClientes);
+
+    recepcionista[type].clientesAtendidos++;
+
+    if(recepcionista[type].tipo==0){
+        if(recepcionista[type].clientesAtendidos % 5 == 0){
+            pthread_mutex_lock(&fichero);
+	        writeLogMessage(type,"Comienza el descanso");
+	        pthread_mutex_unlock(&fichero);
+
+            sleep(5);
+
+            pthread_mutex_lock(&fichero);
+	        writeLogMessage(type,"Fin del descanso");
+	        pthread_mutex_unlock(&fichero);
+        }
+    }
+
+
+    HiloRecepcionista(type);
 }
 
 
@@ -94,8 +153,8 @@ int main(){
         clientes[i].atendido=0;
         clientes[i].tipo=0;
         clientes[i].ascensor=0;
-	clientes[i].pretipo=0;
-	clientes[i].entrada=0;
+	    clientes[i].pretipo=0;
+	    clientes[i].entrada=0;
     }
 
     logFile= fopen("logs.txt","a");     // Inicializa el fichero para los logs
@@ -105,9 +164,9 @@ int main(){
     if (pthread_cond_init(&subirAscensor,NULL)!=0) exit(-1);        // Se inicializa la condición
 
     pthread_t recepcionista0,recepcionista1,recepcionista2;
-    pthread_create(&recepcionista0,NULL,HiloRecepcionista,NULL);  // De momento sin atributos
-    pthread_create(&recepcionista1,NULL,HiloRecepcionista,NULL);
-    pthread_create(&recepcionista2,NULL,HiloRecepcionista,NULL);
+    pthread_create(&recepcionista0,NULL,HiloRecepcionista,0);  // De momento sin atributos
+    pthread_create(&recepcionista1,NULL,HiloRecepcionista,1);
+    pthread_create(&recepcionista2,NULL,HiloRecepcionista,2);
     
     while(1){
         pause();
