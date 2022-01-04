@@ -223,6 +223,7 @@ void *accionesCliente(int pos){
 		pthread_mutex_unlock(&fichero);
 	}	
 	if(clientes[pos].tipo == 2){	//Comprobamos si el cliente va a maquinas o no
+		pthread_mutex_unlock(&colaClientes);
 		pthread_mutex_lock(&maquinas);
 		int i=0,ocupaMaquina=0;                            // ocupaMaquina=0 (no ha ocupado una máquina) o 1 (ha ocupado una máquina)
         while(i<5 && ocupaMaquina==0){
@@ -239,7 +240,7 @@ void *accionesCliente(int pos){
 				cogeAscensor(pos);	
 				}else{	//Marcha
 					pthread_mutex_lock(&fichero);
-					writeLogMessage(pos+1,"El cliente se marcha.");	//Escribe que se va
+					writeLogMessage(pos+1,"El cliente se marcha tras pasar por las maquinas de chackIn.");	//Escribe que se va
 					pthread_mutex_unlock(&fichero);
 					pthread_exit(NULL);
 					pthread_mutex_lock(&colaClientes);
@@ -254,23 +255,28 @@ void *accionesCliente(int pos){
 		pthread_mutex_unlock(&maquinas);
 		sleep(3);
 		if(probabilidad(50) == 1){	//Se queda en maquinas 
+			pthread_mutex_lock(&fichero);
+			writeLogMessage(pos+1, "El cliente vuelve a intentarlo en maquinas");
+			pthread_mutex_unlock(&fichero);
 			accionesCliente(pos);	
       		}else{
 			pthread_mutex_lock(&colaClientes);
 			clientes[pos].tipo=clientes[pos].pretipo;
 			pthread_mutex_unlock(&colaClientes);
+			pthread_mutex_lock(&fichero);
+			writeLogMessage(pos+1, "El cliente se cansa de esperar a las maquinas y prueba suerte en las colas");
+			pthread:mutex_unlock(&fichero);
 			accionesCliente(pos);
 		}
 	}else{	//No va a maquinas
-		pthread_mutex_lock(&colaClientes);
 		while(clientes[pos].atendido == 0){	
-			if(clientes[pos].atendido == 0){	//No esta siendo atendido
-				//Comportamiento
 				int destino = posibilidad2(20, 10);  
 				if(destino == 1){
 					//Va a maquinas
 					clientes[pos].tipo = 2;
 					pthread_mutex_unlock(&colaClientes);
+					pthread_mutex_lock(&fichero);
+					writeLogMessage(pos+1, "El cliente se cansa de esperar y se va a maquinas");
 					accionesCliente(pos);
 				}else if(destino == 2){		//Se marcha directamente
 					//Se marcha
@@ -278,7 +284,7 @@ void *accionesCliente(int pos){
                      			nClientes--;            //Se marcha el cliente
                       			pthread_mutex_unlock(&colaClientes);
                        			pthread_mutex_lock(&fichero);
-                       			writeLogMessage(pos+1,"El cliente se marcha.");  //Escribe en el log
+                       			writeLogMessage(pos+1,"El cliente se marcha directamente porque se cansa de esperar.");  //Escribe en el log
             			        pthread_mutex_unlock(&fichero);
              			        pthread_exit(NULL);
 				}else{
@@ -294,16 +300,20 @@ void *accionesCliente(int pos){
 					}else{	//Se queda en la cola
 						pthread_mutex_unlock(&colaClientes);
 						sleep(3);
+						pthread_mutex_lock(&fichero);
+						writeLogMessage(pos+1, "El cliente decide seguir esperando en las colas");
+						pthread_mutex_unlock(&fichero);
 						accionesCliente(pos);
 					}
 				}
-			}else{
+			}
+		while(clientes[pos].atendido = 1){
+			pthread_mutex_unlock(&colaClientes);
+			sleep(2);
+			pthread_mutex_lock(&colaClientes);
+		}		//Esta siendo atendido
 
-                if(clientes[pos].atendido==1){
-                    //Bucle mientras esta siendo atendido
-                }
-
-                if(clientes[pos].atendido==2){    // Ya ha sido atendido
+                // Ya ha sido atendido
                     if(clientes[pos].expulsion==1){
                         clientes[pos].id=0;
                         nClientes--;		//Se marcha el cliente
@@ -316,6 +326,9 @@ void *accionesCliente(int pos){
 		 	        pthread_mutex_unlock(&colaClientes);
                     if(probabilidad(30)==1){
                         // Va a ascensor
+			pthread_mutex_lock(&fichero);
+			writeLogMessage(pos+1, "El cliente ha sido atendido y decide ir a los ascensores");
+			pthread_mutex_unlock(&fichero);
 			cogeAscensor(pos);
                     }else{
                         //No va a ascensor
@@ -330,7 +343,7 @@ void *accionesCliente(int pos){
                     }
                 }
 			}
-		}
+	}
 	}
 }
 
