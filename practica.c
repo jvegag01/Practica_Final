@@ -172,19 +172,22 @@ int main(){
     pthread_create(&recepcionista1,NULL,HiloRecepcionista,1);
     pthread_create(&recepcionista2,NULL,HiloRecepcionista,2);
     
+    int tipoCliente;
+
     while(1){
-        pause();
+        wait(&tipoCliente);             // Espera a la señal para designar el tipo de cliente
+        nuevoCliente(tipoCliente);
     }
 
     return 0;
 }
 
-void nuevoCliente(){
+void nuevoCliente(int tipo){
     int tipoCliente,i;
     pthread_mutex_lock(&colaClientes);
     i=0;
-    wait(&tipoCliente);                        // Espera a la señal para designar el tipo de cliente
-    tipoCliente=WEXITSTATUS(tipoCliente);
+    // wait(&tipoCliente);                        // Espera a la señal para designar el tipo de cliente
+    tipoCliente=WEXITSTATUS(tipo);
 
     while(clientes[i].id!=0 && i<20){
         i++;
@@ -360,28 +363,30 @@ void cogeAscensor(int pos){
 		cogeAscensor(pos);		
 	}else{	//El ascensor no esta funcionando
 		nAscensor++;
-        if(nAscensor==6){
-            estadoAscensor=1;
-            pthread_cond_signal(&subirAscensor);
+		if(nAscensor<6){	//Todavia no esta lleno
+            pthread_mutex_unlock(&ascensor);
+		    pthread_mutex_lock(&fichero);
+		    writeLogMessage(pos+1, "El cliente entra en el ascensor.");
+		    pthread_mutex_unlock(&fichero);
+            pthread_mutex_lock(&ascensor);
+            pthread_cond_wait(&subirAscensor,&ascensor);
+		}else{	//esta lleno
+            pthread_mutex_unlock(&ascensor);
+            sleep(calculaAleatorios(6,3));
+            pthread_mutex_lock(&ascensor);
+			pthread_cond_signal(&subirAscensor);
+		}
+
+
+        if(nAscensor==1){
+            estadoAscensor=0;       // El último en salir cierra la puerta
         }
+        nAscensor--;
         pthread_mutex_unlock(&ascensor);
 		pthread_mutex_lock(&fichero);
-		writeLogMessage(pos+1, "El cliente entra en el ascensor.");
+		writeLogMessage(pos+1, "El cliente sale del ascensor.");
 		pthread_mutex_unlock(&fichero);
-        pthread_mutex_lock(&ascensor);
 
-		if(nAscensor<6){	//Todavia no esta lleno
-            pthread_cond_wait(&subirAscensor,&ascensor);
-            
-
-		}else{	//esta lleno
-            sleep(calculaAleatorios(6,3));
-			pthread_mutex_lock(&fichero);
-			writeLogMessage(pos+1, "El cliente sale del ascensor.");
-			pthread_mutex_unlock(&fichero);
-			
-					//Falta terminar			
-		}
 		pthread_mutex_lock(&colaClientes);
         clientes[pos].id=0;
         nClientes--;            //Se marcha el cliente
