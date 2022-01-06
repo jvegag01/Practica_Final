@@ -28,7 +28,7 @@ int *maquinasCheckIn;       // 0(libre) o 1(ocupada)
 FILE *logFile;
 
 
-void *accionesCliente(int pos);
+void *accionesCliente(void *arg);
 void clienteNormal();
 void clienteVip();
 void terminar();
@@ -40,7 +40,7 @@ int posibilidad2(int posibilidad1, int posibilidad2);
 
 void *HiloRecepcionista(void *arg){ 
     int i=0,atencion,tiempo;  
-    int pos=(int *)arg;
+    int pos=*(int *)arg;
 
     pthread_mutex_lock(&colaClientes);
 
@@ -57,7 +57,7 @@ void *HiloRecepcionista(void *arg){
     pthread_mutex_unlock(&colaClientes);
     if(i==20){
         sleep(1);
-        HiloRecepcionista(pos);
+        HiloRecepcionista((void*)&pos);
     }
     pthread_mutex_lock(&colaClientes);
     clientes[i].atendido=1;
@@ -111,7 +111,7 @@ void *HiloRecepcionista(void *arg){
 	        pthread_mutex_unlock(&fichero);
         }
     }
-    HiloRecepcionista(pos);
+    HiloRecepcionista((void*)&pos);
 }
 
 
@@ -169,9 +169,10 @@ int main(){
     if (pthread_cond_init(&subirAscensor,NULL)!=0) exit(-1);        // Se inicializa la condición
 
     pthread_t recepcionista0,recepcionista1,recepcionista2;
-    pthread_create(&recepcionista0,NULL,HiloRecepcionista,0);  // De momento sin atributos
-    pthread_create(&recepcionista1,NULL,HiloRecepcionista,1);
-    pthread_create(&recepcionista2,NULL,HiloRecepcionista,2);
+    int cero=0,uno=1,dos=2;
+    pthread_create(&recepcionista0,NULL,HiloRecepcionista,(void*)&cero);  // De momento sin atributos
+    pthread_create(&recepcionista1,NULL,HiloRecepcionista,(void*)&uno);
+    pthread_create(&recepcionista2,NULL,HiloRecepcionista,(void*)&dos);
     
     while(1){
         pause();
@@ -202,23 +203,35 @@ void nuevoCliente(int tipo){
         }
         nuevoCliente.tipo=tipo;
         nuevoCliente.ascensor=0;
-        pthread_create(&hiloCliente,NULL,accionesCliente,i);        // Le paso la posición del cliente en la lista a la manejadora
+        pthread_create(&hiloCliente,NULL,accionesCliente,(void*)&i);        // Le paso la posición del cliente en la lista a la manejadora
     }
     pthread_mutex_unlock(&colaClientes);
 }
 
-void *accionesCliente(int pos){
+void *accionesCliente(void *arg){
+    int pos=*(int *)arg;
 	pthread_mutex_lock(&colaClientes);
 	if(clientes[pos].entrada==0){
 		clientes[pos].entrada=1;
 		pthread_mutex_unlock(&colaClientes);
 		pthread_mutex_lock(&fichero);
 		writeLogMessage(pos+1,"Entra un cliente");
-    	switch(clientes[pos].tipo){
-     		case 0:writeLogMessage(pos+1,"El cliente es de tipo NORMAL.");break;
-  			case 1:writeLogMessage(pos+1,"El cliente es de tipo VIP.");break;
-   			case 2:writeLogMessage(pos+1,"El cliente es de tipo Máquinas.");break;
-   		}   
+        if(clientes[pos].tipo==0){
+            writeLogMessage(pos+1,"El cliente es de tipo NORMAL.");
+        }
+
+        if(clientes[pos].tipo==1){
+            writeLogMessage(pos+1,"El cliente es de tipo VIP.");
+        }
+
+        if(clientes[pos].tipo==2){
+            writeLogMessage(pos+1,"El cliente es de tipo Máquinas.");
+        }
+    	// switch(clientes[pos].tipo){
+     	// 	case 0:writeLogMessage(pos+1,"El cliente es de tipo NORMAL.");break;
+  		// 	case 1:writeLogMessage(pos+1,"El cliente es de tipo VIP.");break;
+   		// 	case 2:writeLogMessage(pos+1,"El cliente es de tipo Máquinas.");break;
+   		// }   
 		pthread_mutex_unlock(&fichero);
 	}	
 	if(clientes[pos].tipo == 2){	//Comprobamos si el cliente va a maquinas o no
@@ -257,7 +270,7 @@ void *accionesCliente(int pos){
 			pthread_mutex_lock(&fichero);
 			writeLogMessage(pos+1, "El cliente vuelve a intentarlo en maquinas");
 			pthread_mutex_unlock(&fichero);
-			accionesCliente(pos);	
+			accionesCliente((void*)&pos);	
       	}else{
 			pthread_mutex_lock(&colaClientes);
 			clientes[pos].tipo=clientes[pos].pretipo;
@@ -265,7 +278,7 @@ void *accionesCliente(int pos){
 			pthread_mutex_lock(&fichero);
 			writeLogMessage(pos+1, "El cliente se cansa de esperar a las maquinas y prueba suerte en las colas");
 			pthread_mutex_unlock(&fichero);
-			accionesCliente(pos);
+			accionesCliente((void*)&pos);
 		}
 	}else{	//No va a maquinas
 		while(clientes[pos].atendido == 0){	            // PODRIA SER UN IF!!!!!!!!!!
@@ -277,7 +290,7 @@ void *accionesCliente(int pos){
 					pthread_mutex_lock(&fichero);
 					writeLogMessage(pos+1, "El cliente se cansa de esperar y se va a maquinas");
                     pthread_mutex_unlock(&fichero);
-					accionesCliente(pos);
+					accionesCliente((void*)&pos);
 				}else if(destino == 2){		//Se marcha directamente
 					//Se marcha
                     clientes[pos].id=0;
@@ -303,7 +316,7 @@ void *accionesCliente(int pos){
 						pthread_mutex_lock(&fichero);
 						writeLogMessage(pos+1, "El cliente decide seguir esperando en la cola");
 						pthread_mutex_unlock(&fichero);
-						accionesCliente(pos);
+						accionesCliente((void*)&pos);
 					}
 				}
 			}
