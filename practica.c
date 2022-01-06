@@ -1,5 +1,6 @@
 #include<pthread.h>
 #include<stdlib.h>
+#include <unistd.h>
 #include<stdio.h>
 #include<signal.h>
 #include<sys/wait.h>
@@ -161,7 +162,7 @@ int main(){
         clientes[i].expulsion=0;
     }
 
-    logFile= fopen("logs.txt","a");     // Inicializa el fichero para los logs
+    logFile= fopen("logs.txt","w");     // Inicializa el fichero para los logs
     estadoAscensor=0;                   // El ascensor está parado
     nAscensor=0;                          // Nadie está en el ascensor
 
@@ -172,22 +173,17 @@ int main(){
     pthread_create(&recepcionista1,NULL,HiloRecepcionista,1);
     pthread_create(&recepcionista2,NULL,HiloRecepcionista,2);
     
-    int tipoCliente;
-
     while(1){
-        wait(&tipoCliente);             // Espera a la señal para designar el tipo de cliente
-        nuevoCliente(tipoCliente);
+        pause();
     }
 
     return 0;
 }
-
+;
 void nuevoCliente(int tipo){
-    int tipoCliente,i;
+    int i;
     pthread_mutex_lock(&colaClientes);
     i=0;
-    // wait(&tipoCliente);                        // Espera a la señal para designar el tipo de cliente
-    tipoCliente=WEXITSTATUS(tipo);
 
     while(clientes[i].id!=0 && i<20){
         i++;
@@ -202,9 +198,9 @@ void nuevoCliente(int tipo){
         nuevoCliente.id=nClientes;
         nuevoCliente.atendido=0;
         if(probabilidad(10)==1){
-            tipoCliente=2;
+            tipo=2;
         }
-        nuevoCliente.tipo=tipoCliente;
+        nuevoCliente.tipo=tipo;
         nuevoCliente.ascensor=0;
         pthread_create(&hiloCliente,NULL,accionesCliente,i);        // Le paso la posición del cliente en la lista a la manejadora
     }
@@ -218,10 +214,10 @@ void *accionesCliente(int pos){
 		pthread_mutex_unlock(&colaClientes);
 		pthread_mutex_lock(&fichero);
 		writeLogMessage(pos+1,"Entra un cliente");
-    		switch(clientes[pos].tipo){
-       	 		case 0:writeLogMessage(pos+1,"El cliente es de tipo NORMAL.");break;
-      			case 1:writeLogMessage(pos+1,"El cliente es de tipo VIP.");break;
-       			case 2:writeLogMessage(pos+1,"El cliente es de tipo Máquinas.");break;
+    	switch(clientes[pos].tipo){
+     		case 0:writeLogMessage(pos+1,"El cliente es de tipo NORMAL.");break;
+  			case 1:writeLogMessage(pos+1,"El cliente es de tipo VIP.");break;
+   			case 2:writeLogMessage(pos+1,"El cliente es de tipo Máquinas.");break;
    		}   
 		pthread_mutex_unlock(&fichero);
 	}	
@@ -243,7 +239,7 @@ void *accionesCliente(int pos){
 				cogeAscensor(pos);	
 				}else{	//Marcha
 					pthread_mutex_lock(&fichero);
-					writeLogMessage(pos+1,"El cliente se marcha tras pasar por las maquinas de chackIn.");	//Escribe que se va
+					writeLogMessage(pos+1,"El cliente se marcha tras pasar por las maquinas de checkIn.");	//Escribe que se va
 					pthread_mutex_unlock(&fichero);
 					pthread_exit(NULL);
 					pthread_mutex_lock(&colaClientes);
@@ -305,7 +301,7 @@ void *accionesCliente(int pos){
 						pthread_mutex_unlock(&colaClientes);
 						sleep(3);
 						pthread_mutex_lock(&fichero);
-						writeLogMessage(pos+1, "El cliente decide seguir esperando en las colas");
+						writeLogMessage(pos+1, "El cliente decide seguir esperando en la cola");
 						pthread_mutex_unlock(&fichero);
 						accionesCliente(pos);
 					}
@@ -400,7 +396,7 @@ void clienteNormal(){
         perror("Error en la llamada a signal");
         exit(-1);
     }
-    exit(0);
+    nuevoCliente(0);
 }
 
 void clienteVip(){
@@ -408,7 +404,7 @@ void clienteVip(){
         perror("Error en la llamada a signal");
         exit(-1);
     }
-    exit(1);
+    nuevoCliente(1);
 }
 
 void terminar(){
@@ -416,6 +412,7 @@ void terminar(){
         perror("Error en la llamada a signal");
         exit(-1);
     }
+    exit(0);
 }
 
 int probabilidad(int probabilidad) {
