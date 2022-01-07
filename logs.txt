@@ -1,0 +1,35 @@
+[07/01/22 02:37:41] 1: Entra un cliente
+[07/01/22 02:37:41] 1: El cliente es de tipo NORMAL.
+[07/01/22 02:37:41] 1: encuentra normal
+[07/01/22 02:37:41] 0: ATIENDE AL CLIENTE
+[07/01/22 02:37:41] 1: Se comienza a atender al cliente
+[07/01/22 02:37:42] 1: NO VA MAQUINAS
+[07/01/22 02:37:42] 1: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:44] 1: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:46] 1: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:46] 1: Ha finalizado la atención
+[07/01/22 02:37:46] 1: La atención ha finalizado y el cliente estaba mal identificado
+[07/01/22 02:37:48] 1: El cliente comunica que se va a su habitación.
+[07/01/22 02:37:51] 1: Entra un cliente
+[07/01/22 02:37:51] 1: El cliente es de tipo VIP.
+[07/01/22 02:37:51] 3: encuentra VIP
+[07/01/22 02:37:51] 0: ATIENDE AL CLIENTE
+[07/01/22 02:37:51] 3: Se comienza a atender al cliente
+[07/01/22 02:37:51] 2: Entra un cliente
+[07/01/22 02:37:51] 2: El cliente es de tipo NORMAL.
+[07/01/22 02:37:52] 1: NO VA MAQUINAS
+[07/01/22 02:37:52] 1: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:52] 1: encuentra normal
+[07/01/22 02:37:52] 1: ATIENDE AL CLIENTE
+[07/01/22 02:37:52] 1: Se comienza a atender al cliente
+[07/01/22 02:37:52] 2: NO VA MAQUINAS
+[07/01/22 02:37:52] 2: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:54] 1: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:54] 3: Ha finalizado la atención
+[07/01/22 02:37:54] 3: La atención ha finalizado y el cliente estaba mal identificado
+[07/01/22 02:37:54] 2: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:56] 1: El cliente comunica que se va a su habitación.
+[07/01/22 02:37:56] 2: ESTA SIENDO ATENDIDO
+[07/01/22 02:37:57] 1: Ha finalizado la atención
+[07/01/22 02:37:57] 1: La atención ha finalizado y el cliente estaba mal identificado
+[07/01/22 02:37:58] 2: El cliente comunica que se va a su habitación.
