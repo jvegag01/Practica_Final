@@ -40,6 +40,7 @@ int calculaAleatorios(int min, int max);
 int probabilidad(int probabilidad);
 int posibilidad2(int posibilidad1, int posibilidad2);
 void modificaNMaquinas();
+void modificaNClientes();
 
 void *HiloRecepcionista(void *arg){ 
     int i=0,atencion,tiempo;  
@@ -173,6 +174,11 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
+    if(signal(SIGPIPE,modificaNClientes)==SIG_ERR){	//Ponemos señal 13 para realizar la modificacion I
+        perror("Error en la llamada a signal");
+        exit(-1);
+    }
+    
     if(signal(SIGINT,terminar)==SIG_ERR){
         perror("Error en la llamada a signal");
         exit(-1);
@@ -490,12 +496,25 @@ void clienteVip(){
 }
 
 void modificaNMaquinas(){                               // Aumenta en 1 el número de máquinas
-    if(signal(SIGSEGV,modificaNMaquinas)==SIG_ERR){
+    if(signal(SIGSEGV,modificaNMaquinas)==SIG_ERR){	//Ponemos señal 11 para realizar la modificacion II
         perror("Error en la llamada a signal");
         exit(-1);
     }
+    pthread_mutex_lock(&maquinas);
     nMaquinas++;
-    maquinasCheckIn=realloc(maquinasCheckIn,nMaquinas+1);
+    maquinasCheckIn=realloc(maquinasCheckIn,nMaquinas);
+    pthread_mutex_unlock(&maquinas);
+}
+
+void modificaNClientes(){                               // Aumenta en 1 el número de clientes
+    if(signal(SIGPIPE,modificaNClientes)==SIG_ERR){	//Ponemos señal 13 para realizar la modificacion I
+        perror("Error en la llamada a signal");
+        exit(-1);
+    }
+    pthread_mutex_lock(&colaClientes);
+    nClientesMax++;
+    clientes=realloc(clientes,nClientesMax);
+    pthread_mutex_lock(&colaClientes);
 }
 
 void terminar(){
