@@ -9,8 +9,8 @@
 pthread_mutex_t fichero,colaClientes,ascensor,maquinas;
 pthread_cond_t subirAscensor;
 int nClientes;
-int nclientes;
-int nmaquinas;
+int nClientesMax;
+int nMaquinas;
 int nAscensor;
 int estadoAscensor;     // 0 parado, 1 funcionando
 
@@ -39,6 +39,7 @@ void cogeAscensor(int pos);
 int calculaAleatorios(int min, int max);
 int probabilidad(int probabilidad);
 int posibilidad2(int posibilidad1, int posibilidad2);
+void modificaNMaquinas();
 
 void *HiloRecepcionista(void *arg){ 
     int i=0,atencion,tiempo;  
@@ -138,8 +139,8 @@ void *HiloRecepcionista(void *arg){
 
 
 int main(int argc, char *argv[]){
-    nclientes=atoi(argv[1]);
-    nmaquinas=atoi(argv[2]);
+    nClientesMax=atoi(argv[1]);
+    nMaquinas=atoi(argv[2]);
 
     logFile= fopen("logs.txt","w");     // Inicializa el fichero para los logs
     if(argc!=3){
@@ -147,13 +148,13 @@ int main(int argc, char *argv[]){
         return(-1);
     }
 
-    if(nclientes<1){
-        writeLogMessage(nclientes,"ERROR. El número de clientes debe ser 1 o mayor");
+    if(nClientesMax<1){
+        writeLogMessage(nClientesMax,"ERROR. El número de clientes debe ser 1 o mayor");
         return(-1);
     }
 
-     if(nmaquinas<1){
-        writeLogMessage(nmaquinas,"ERROR. El número de máquinas de check-in debe ser 1 o mayor");
+     if(nMaquinas<1){
+        writeLogMessage(nMaquinas,"ERROR. El número de máquinas de check-in debe ser 1 o mayor");
         return(-1);
     }
 
@@ -163,6 +164,11 @@ int main(int argc, char *argv[]){
     }
 
     if(signal(SIGUSR2,clienteVip)==SIG_ERR){
+        perror("Error en la llamada a signal");
+        exit(-1);
+    }
+
+    if(signal(SIGSEGV,modificaNMaquinas)==SIG_ERR){
         perror("Error en la llamada a signal");
         exit(-1);
     }
@@ -178,11 +184,11 @@ int main(int argc, char *argv[]){
     if(pthread_mutex_init(&maquinas,NULL)!=0) exit(-1);
 
     nClientes=0;
-    clientes=(struct cliente *)malloc(sizeof(struct cliente)*nclientes);
+    clientes=(struct cliente *)malloc(sizeof(struct cliente)*nClientesMax);
     recepcionistas=(struct recepcionista *)malloc(sizeof(struct recepcionista)*3);
-    maquinasCheckIn=(int*)malloc(sizeof(int)*nmaquinas);
+    maquinasCheckIn=(int*)malloc(sizeof(int)*nMaquinas);
     int i;
-    for(i=0;i<nclientes;i++){              // Inicializa las listas de clientes
+    for(i=0;i<nClientesMax;i++){              // Inicializa las listas de clientes
         
         clientes[i].id=0;
         clientes[i].atendido=0;
@@ -193,7 +199,7 @@ int main(int argc, char *argv[]){
         clientes[i].expulsion=0;
     }
 
-    for(i=0;i<nmaquinas;i++){                 //Inicializa las listas de máquinas check-in
+    for(i=0;i<nMaquinas;i++){                 //Inicializa las listas de máquinas check-in
         maquinasCheckIn[i]=0;
     }
 
@@ -279,7 +285,7 @@ void *accionesCliente(void *arg){
 		pthread_mutex_unlock(&colaClientes);
 		pthread_mutex_lock(&maquinas);
 		int i=0,ocupaMaquina=0;                            // ocupaMaquina=0 (no ha ocupado una máquina) o 1 (ha ocupado una máquina)
-        while(i<5 && ocupaMaquina==0){
+        while(i<nMaquinas && ocupaMaquina==0){
 			if(maquinasCheckIn[i] == 0){	//Comprueba si hay maquina libre
 				maquinasCheckIn[i] = 1;
                 ocupaMaquina=1;
@@ -481,6 +487,15 @@ void clienteVip(){
 		writeLogMessage(1, "SEÑAL LLEGA VIP");
 		pthread_mutex_unlock(&fichero);
     nuevoCliente(1);
+}
+
+void modificaNMaquinas(){                               // Aumenta en 1 el número de máquinas
+    if(signal(SIGSEGV,modificaNMaquinas)==SIG_ERR){
+        perror("Error en la llamada a signal");
+        exit(-1);
+    }
+    nMaquinas++;
+    maquinasCheckIn=realloc(maquinasCheckIn,nMaquinas+1);
 }
 
 void terminar(){
