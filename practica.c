@@ -243,11 +243,11 @@ void nuevoCliente(int tipo){
     pthread_mutex_lock(&colaClientes);
     i=0;
 
-    while(clientes[i].id!=0 && i<20){
+    while(clientes[i].id!=0 && i<nClientesMax){
         i++;
     }
 
-    if(i!=20){      // Hay espacio libre en la cola de clientes
+    if(i!=nClientesMax){      // Hay espacio libre en la cola de clientes
         struct cliente nuevoCliente;
         pthread_t hiloCliente;
 
@@ -265,8 +265,13 @@ void nuevoCliente(int tipo){
         clientes[i]=nuevoCliente;
 
         pthread_create(&hiloCliente,NULL,accionesCliente,(void*)&i);        // Le paso la posición del cliente en la lista a la manejadora
-    }
+ 	pthread_mutex_unlock(&colaClientes);
+    }else{
     pthread_mutex_unlock(&colaClientes);
+    pthread_mutex_lock(&fichero);
+    writeLogMessage(-1, "No ha podido entrar");
+    pthread_mutex_unlock(&fichero);
+    }
 }
 
 void *accionesCliente(void *arg){
@@ -514,7 +519,7 @@ void modificaNClientes(){                               // Aumenta en 1 el núme
     pthread_mutex_lock(&colaClientes);
     nClientesMax++;
     clientes=realloc(clientes,nClientesMax);
-    pthread_mutex_lock(&colaClientes);
+    pthread_mutex_unlock(&colaClientes);
 }
 
 void terminar(){
