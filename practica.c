@@ -9,6 +9,8 @@
 pthread_mutex_t fichero,colaClientes,ascensor,maquinas;
 pthread_cond_t subirAscensor;
 int nClientes;
+int nclientes;
+int nmaquinas;
 int nAscensor;
 int estadoAscensor;     // 0 parado, 1 funcionando
 
@@ -135,7 +137,26 @@ void *HiloRecepcionista(void *arg){
 }
 
 
-int main(){
+int main(int argc, char *argv[]){
+    nclientes=atoi(argv[1]);
+    nmaquinas=atoi(argv[2]);
+
+    logFile= fopen("logs.txt","w");     // Inicializa el fichero para los logs
+    if(argc!=3){
+        writeLogMessage(argc,"ERROR. El número de argumentos es distinto de 2");
+        return(-1);
+    }
+
+    if(nclientes<1){
+        writeLogMessage(nclientes,"ERROR. El número de clientes debe ser 1 o mayor");
+        return(-1);
+    }
+
+     if(nmaquinas<1){
+        writeLogMessage(nmaquinas,"ERROR. El número de máquinas de check-in debe ser 1 o mayor");
+        return(-1);
+    }
+
     if(signal(SIGUSR1,clienteNormal)==SIG_ERR){
         perror("Error en la llamada a signal");
         exit(-1);
@@ -157,23 +178,12 @@ int main(){
     if(pthread_mutex_init(&maquinas,NULL)!=0) exit(-1);
 
     nClientes=0;
-    clientes=(struct cliente *)malloc(sizeof(struct cliente)*20);
+    clientes=(struct cliente *)malloc(sizeof(struct cliente)*nclientes);
     recepcionistas=(struct recepcionista *)malloc(sizeof(struct recepcionista)*3);
-    maquinasCheckIn=(int*)malloc(sizeof(int)*5);
+    maquinasCheckIn=(int*)malloc(sizeof(int)*nmaquinas);
     int i;
-    for(i=0;i<20;i++){              // Inicializa las listas de clientes, máquinas check-in y recepcionistas.
-        if(i<5){
-            if(i<3){
-                recepcionistas[i].clientesAtendidos=0;
-                recepcionistas[i].clienteAtendido=0;
-                if(i==2){                                   // El recepcionista 0 y 1 son normales y el 2 es Vip
-                    recepcionistas[i].tipo=1;
-                }else{
-                     recepcionistas[i].tipo=0;
-                }
-            }
-            maquinasCheckIn[i]=0;
-        }
+    for(i=0;i<nclientes;i++){              // Inicializa las listas de clientes
+        
         clientes[i].id=0;
         clientes[i].atendido=0;
         clientes[i].tipo=0;
@@ -183,7 +193,21 @@ int main(){
         clientes[i].expulsion=0;
     }
 
-    logFile= fopen("logs.txt","w");     // Inicializa el fichero para los logs
+    for(i=0;i<nmaquinas;i++){                 //Inicializa las listas de máquinas check-in
+        maquinasCheckIn[i]=0;
+    }
+
+    for(i=0;i<3;i++){                           //Inicializa las listas de recepcionistas
+        recepcionistas[i].clientesAtendidos=0;
+        recepcionistas[i].clienteAtendido=0;
+        if(i==2){                                   // El recepcionista 0 y 1 son normales y el 2 es Vip
+            recepcionistas[i].tipo=1;
+        }else{
+            recepcionistas[i].tipo=0;
+        }
+    }
+
+    
     estadoAscensor=0;                   // El ascensor está parado
     nAscensor=0;                          // Nadie está en el ascensor
 
