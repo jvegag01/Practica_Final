@@ -264,7 +264,7 @@ void *accionesCliente(void *arg){
 				pthread_mutex_lock(&maquinas);
 				maquinasCheckIn[i] = 0;
 				pthread_mutex_unlock(&maquinas);
-				if(probabilidad(30)==1){	//Comprueba si va a ascensores
+				if(probabilidad(100)==1){	//Comprueba si va a ascensores
 				// Va a ascensores
 				cogeAscensor(pos);	
 				}else{	//Marcha
@@ -367,7 +367,7 @@ void *accionesCliente(void *arg){
         }
 		pthread_mutex_unlock(&colaClientes);
 
-        if(probabilidad(30)==1){
+        if(probabilidad(100)==1){
             // Va a ascensor
 			pthread_mutex_lock(&fichero);
 			writeLogMessage(pos+1, "El cliente ha sido atendido y decide ir a los ascensores");
@@ -409,6 +409,7 @@ void cogeAscensor(int pos){
             pthread_mutex_lock(&ascensor);
             pthread_cond_wait(&subirAscensor,&ascensor);
 		}else{	//esta lleno
+            estadoAscensor=1;
             pthread_mutex_unlock(&ascensor);
             sleep(calculaAleatorios(6,3));
             pthread_mutex_lock(&ascensor);
