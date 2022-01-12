@@ -49,10 +49,10 @@ void *HiloRecepcionista(void *arg){
     pthread_mutex_lock(&colaClientes);
 
     if(recepcionistas[pos].tipo==0){
-        while(clientes[i].id==0 && i<20 || clientes[i].id!=0 && i<20 && clientes[i].atendido!=0 || clientes[i].id!=0 && i<20 && clientes[i].tipo!=0){
+        while(clientes[i].id==0 && i<nClientesMax || clientes[i].id!=0 && i<nClientesMax && clientes[i].atendido!=0 || clientes[i].id!=0 && i<nClientesMax && clientes[i].tipo!=0){
             i++;
         }
-        if(i!=20){
+        if(i<nClientesMax){
         recepcionistas[pos].clienteAtendido=i;
         clientes[recepcionistas[pos].clienteAtendido].atendido=1;
         pthread_mutex_lock(&fichero);
@@ -60,10 +60,10 @@ void *HiloRecepcionista(void *arg){
 	    pthread_mutex_unlock(&fichero);
         }
     }else{
-        while(clientes[i].id==0 && i<20 || clientes[i].id!=0 && i<20 && clientes[i].atendido!=0 || clientes[i].id!=0 && i<20 && clientes[i].tipo!=1){
+        while(clientes[i].id==0 && i<nClientesMax || clientes[i].id!=0 && i<nClientesMax && clientes[i].atendido!=0 || clientes[i].id!=0 && i<nClientesMax && clientes[i].tipo!=1){
             i++;
         }
-        if(i!=20){
+        if(i<nClientesMax){
         recepcionistas[pos].clienteAtendido=i;
         clientes[recepcionistas[pos].clienteAtendido].atendido=1;
         pthread_mutex_lock(&fichero);
@@ -73,7 +73,7 @@ void *HiloRecepcionista(void *arg){
     }
 
     pthread_mutex_unlock(&colaClientes);
-    if(i==20){
+    if(i==nClientesMax){
         sleep(1);
         HiloRecepcionista((void*)&pos);
     }else{
@@ -140,14 +140,14 @@ void *HiloRecepcionista(void *arg){
 
 
 int main(int argc, char *argv[]){
-    nClientesMax=atoi(argv[1]);
-    nMaquinas=atoi(argv[2]);
-
     logFile= fopen("logs.txt","w");     // Inicializa el fichero para los logs
     if(argc!=3){
         writeLogMessage(argc,"ERROR. El número de argumentos es distinto de 2");
         return(-1);
     }
+    nClientesMax=atoi(argv[1]);
+    nMaquinas=atoi(argv[2]);
+
 
     if(nClientesMax<1){
         writeLogMessage(nClientesMax,"ERROR. El número de clientes debe ser 1 o mayor");
@@ -242,19 +242,18 @@ void nuevoCliente(int tipo){
     int i;
     pthread_mutex_lock(&colaClientes);
     i=0;
-
     while(clientes[i].id!=0 && i<nClientesMax){
         i++;
     }
 
-    if(i!=nClientesMax){      // Hay espacio libre en la cola de clientes
+    if(i<nClientesMax){      // Hay espacio libre en la cola de clientes
         struct cliente nuevoCliente;
         pthread_t hiloCliente;
 
         nClientes++;
         nuevoCliente.id=nClientes;
         nuevoCliente.atendido=0;
-        if(probabilidad(10)==1){
+        if(probabilidad(100)==1){
             tipo=2;
         }
         nuevoCliente.tipo=tipo;
@@ -307,6 +306,9 @@ void *accionesCliente(void *arg){
 				pthread_mutex_unlock(&maquinas);
 				if(probabilidad(30)==1){	//Comprueba si va a ascensores
 				// Va a ascensores
+                pthread_mutex_lock(&fichero);
+				writeLogMessage(pos+1,"El cliente se va a ascensores tras pasar por las maquinas de checkIn.");	//Escribe que se va
+				pthread_mutex_unlock(&fichero);
 				cogeAscensor(pos);	
 				}else{	//Marcha
 					pthread_mutex_lock(&fichero);
@@ -519,6 +521,13 @@ void modificaNClientes(){                               // Aumenta en 1 el núme
     pthread_mutex_lock(&colaClientes);
     nClientesMax++;
     clientes=realloc(clientes,nClientesMax);
+    clientes[nClientesMax-1].id=0;
+    clientes[nClientesMax-1].atendido=0;
+    clientes[nClientesMax-1].tipo=0;
+    clientes[nClientesMax-1].ascensor=0;
+	clientes[nClientesMax-1].pretipo=0;
+	clientes[nClientesMax-1].entrada=0;
+    clientes[nClientesMax-1].expulsion=0;
     pthread_mutex_unlock(&colaClientes);
 }
 
