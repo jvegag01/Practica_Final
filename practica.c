@@ -13,6 +13,9 @@ int nClientesMax;
 int nMaquinas;
 int nAscensor;
 int estadoAscensor;     // 0 parado, 1 funcionando
+int puertasCerradas;
+int clientesFuera;
+int recepout;
 
 struct cliente{
     int id,atendido,tipo,ascensor,pretipo,entrada,expulsion;
@@ -41,6 +44,7 @@ int probabilidad(int probabilidad);
 int posibilidad2(int posibilidad1, int posibilidad2);
 void modificaNMaquinas();
 void modificaNClientes();
+void despertarMain();
 
 void *HiloRecepcionista(void *arg){ 
     int i=0,atencion,tiempo;  
@@ -72,13 +76,23 @@ void *HiloRecepcionista(void *arg){
         }
     }
 
-    pthread_mutex_unlock(&colaClientes);
+    
     if(i==nClientesMax){
-        sleep(1);
-        HiloRecepcionista((void*)&pos);
-    }else{
-        recepcionistas[pos].clienteAtendido=i;
+        if(puertasCerradas==0){
+            pthread_mutex_unlock(&colaClientes);
+            sleep(1);
+            HiloRecepcionista((void*)&pos);
+        }else{
+             pthread_mutex_unlock(&colaClientes);
+            if(recepout==2){
+                kill(getpid(),SIGHUP);
+            }
+            recepout++;
+            pthread_exit(NULL);
+        }
+        
     }
+
 
     // pthread_mutex_lock(&colaClientes);
     // clientes[recepcionistas[pos].clienteAtendido].atendido=1;
@@ -100,6 +114,7 @@ void *HiloRecepcionista(void *arg){
 	writeLogMessage(pos+1,"Se comienza a atender al cliente");
 	pthread_mutex_unlock(&fichero);
 
+    pthread_mutex_unlock(&colaClientes);
     sleep(tiempo);
 
     pthread_mutex_lock(&fichero);
@@ -184,12 +199,20 @@ int main(int argc, char *argv[]){
         exit(-1);
     }
 
+    if(signal(SIGHUP,despertarMain)==SIG_ERR){
+        perror("Error en la llamada a signal");
+        exit(-1);
+    }
+
     if(pthread_mutex_init(&fichero,NULL)!=0) exit(-1);
     if(pthread_mutex_init(&colaClientes,NULL)!=0) exit(-1);
     if(pthread_mutex_init(&ascensor,NULL)!=0) exit(-1);
     if(pthread_mutex_init(&maquinas,NULL)!=0) exit(-1);
 
     nClientes=0;
+    clientesFuera=1;
+    puertasCerradas=0;
+    recepout=0;
     clientes=(struct cliente *)malloc(sizeof(struct cliente)*nClientesMax);
     recepcionistas=(struct recepcionista *)malloc(sizeof(struct recepcionista)*3);
     maquinasCheckIn=(int*)malloc(sizeof(int)*nMaquinas);
@@ -231,10 +254,24 @@ int main(int argc, char *argv[]){
     pthread_create(&recepcionista1,NULL,HiloRecepcionista,(void*)&uno);
     pthread_create(&recepcionista2,NULL,HiloRecepcionista,(void*)&dos);
     
-    while(1){
+    while(puertasCerradas==0){
         pause();
     }
 
+    while(clientesFuera!=0){
+        clientesFuera=0;
+        pthread_mutex_lock(&colaClientes);
+        for(i=0;i<nClientesMax;i++){              // Inicializa las listas de clientes
+            if(clientes[i].id!=0){
+                clientesFuera++;
+            }       
+        }
+        pthread_mutex_unlock(&colaClientes);
+    }
+
+    pthread_mutex_lock(&fichero);
+    writeLogMessage(getpid(), "La jornada ha acabado y se cierra el hotel");
+    pthread_mutex_unlock(&fichero);
     return 0;
 }
 ;
@@ -253,7 +290,7 @@ void nuevoCliente(int tipo){
         nClientes++;
         nuevoCliente.id=nClientes;
         nuevoCliente.atendido=0;
-        if(probabilidad(100)==1){
+        if(probabilidad(10)==1){
             tipo=2;
         }
         nuevoCliente.tipo=tipo;
@@ -304,7 +341,7 @@ void *accionesCliente(void *arg){
 				pthread_mutex_lock(&maquinas);
 				maquinasCheckIn[i] = 0;
 				pthread_mutex_unlock(&maquinas);
-				if(probabilidad(30)==1){	//Comprueba si va a ascensores
+				if(probabilidad(30)==1 && puertasCerradas==0){	//Comprueba si va a ascensores
 				// Va a ascensores
                 pthread_mutex_lock(&fichero);
 				writeLogMessage(pos+1,"El cliente se va a ascensores tras pasar por las maquinas de checkIn.");	//Escribe que se va
@@ -326,7 +363,7 @@ void *accionesCliente(void *arg){
 
 		pthread_mutex_unlock(&maquinas);
 		sleep(3);
-		if(probabilidad(50) == 1){	//Se queda en maquinas 
+		if(probabilidad(50) == 1 || puertasCerradas==1){	//Se queda en maquinas 
 			pthread_mutex_lock(&fichero);
 			writeLogMessage(pos+1, "El cliente vuelve a intentarlo en maquinas");
 			pthread_mutex_unlock(&fichero);
@@ -410,7 +447,7 @@ void *accionesCliente(void *arg){
         }
 		pthread_mutex_unlock(&colaClientes);
 
-        if(probabilidad(30)==1){
+        if(probabilidad(30)==1 && puertasCerradas==0){
             // Va a ascensor
 			pthread_mutex_lock(&fichero);
 			writeLogMessage(pos+1, "El cliente ha sido atendido y decide ir a los ascensores");
@@ -536,8 +573,24 @@ void terminar(){
         perror("Error en la llamada a signal");
         exit(-1);
     }
-    exit(0);
+    puertasCerradas=1;
+    signal(SIGUSR1,SIG_IGN);
+    signal(SIGUSR2,SIG_IGN);
+
+    pthread_mutex_lock(&ascensor);
+    for(int i=0;i<nAscensor;i++){
+        pthread_cond_signal(&subirAscensor);        // Desbloquea a 1 cliente del ascensor
+    }
+    pthread_mutex_unlock(&ascensor);
 }
+
+void despertarMain(){
+    if(signal(SIGHUP,despertarMain)==SIG_ERR){
+        perror("Error en la llamada a signal");
+        exit(-1);
+    }
+}
+
 
 int probabilidad(int probabilidad) {
     srand(time(NULL));
