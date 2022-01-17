@@ -142,7 +142,7 @@ void *HiloRecepcionista(void *arg){
 
 
 int main(int argc, char *argv[]){
-    logFile= fopen("logs.txt","w");     // Inicializa el fichero para los logs
+    logFile= fopen("registroTiempos.log","w");     // Inicializa el fichero para los logs
     if(argc!=3){
         writeLogMessage(argc,"ERROR. El número de argumentos es distinto de 2");
         return(-1);
@@ -259,6 +259,10 @@ int main(int argc, char *argv[]){
         pthread_mutex_unlock(&colaClientes);
     }
 
+    free(clientes);                 //Liberamos los punteros
+    free(maquinasCheckIn);
+    free(recepcionistas);
+
     pthread_mutex_lock(&fichero);
     writeLogMessage(getpid(), "La jornada ha acabado y se cierra el hotel");
     pthread_mutex_unlock(&fichero);
@@ -278,7 +282,7 @@ void nuevoCliente(int tipo){
         pthread_t hiloCliente;
 
         nClientes++;
-        nuevoCliente.id=i;
+        nuevoCliente.id=nClientes;
         nuevoCliente.atendido=0;
         if(probabilidad(10)==1){
             tipo=2;
@@ -307,12 +311,12 @@ void *accionesCliente(void *arg){
 	    clientes[pos].entrada=1;
 		pthread_mutex_unlock(&colaClientes);
 		pthread_mutex_lock(&fichero);
-		writeLogMessage(pos+1,"Entra un cliente");
+		writeLogMessage(clientes[pos].id,"Entra un cliente");
         pthread_mutex_lock(&colaClientes);
     	switch(clientes[pos].tipo){
-     	    case 0:writeLogMessage(pos+1,"El cliente es de tipo NORMAL.");break;
-  			case 1:writeLogMessage(pos+1,"El cliente es de tipo VIP.");break;
-   		    case 2:writeLogMessage(pos+1,"El cliente es de tipo Máquinas.");break;
+     	    case 0:writeLogMessage(clientes[pos].id,"El cliente es de tipo NORMAL.");break;
+  			case 1:writeLogMessage(clientes[pos].id,"El cliente es de tipo VIP.");break;
+   		    case 2:writeLogMessage(clientes[pos].id,"El cliente es de tipo Máquinas.");break;
    		}
 		pthread_mutex_unlock(&fichero);
 	}	
@@ -326,7 +330,7 @@ void *accionesCliente(void *arg){
                 ocupaMaquina=1;
 				pthread_mutex_unlock(&maquinas);
                 pthread_mutex_lock(&fichero);
-                writeLogMessage(pos+1, "El cliente va a ser atendido en máquinas");
+                writeLogMessage(clientes[pos].id, "El cliente va a ser atendido en máquinas");
                 pthread_mutex_unlock(&fichero);
 				sleep(6);
 				pthread_mutex_lock(&maquinas);
@@ -334,16 +338,15 @@ void *accionesCliente(void *arg){
 				pthread_mutex_unlock(&maquinas);
 				if(probabilidad(30)==1 && puertasCerradas==0){	//Comprueba si va a ascensores
                     pthread_mutex_lock(&fichero);
-				    writeLogMessage(pos+1,"El cliente se va a ascensores tras pasar por las maquinas de checkIn.");	//Escribe que se va
+				    writeLogMessage(clientes[pos].id,"El cliente se va a ascensores tras pasar por las maquinas de checkIn.");	//Escribe que se va
 				    pthread_mutex_unlock(&fichero);
 				    cogeAscensor(pos);	
 				}else{	
 					pthread_mutex_lock(&fichero);
-					writeLogMessage(pos+1,"El cliente se marcha tras pasar por las maquinas de checkIn.");	//Escribe que se va
+					writeLogMessage(clientes[pos].id,"El cliente se marcha tras pasar por las maquinas de checkIn.");	//Escribe que se va
 					pthread_mutex_unlock(&fichero);
 					pthread_mutex_lock(&colaClientes);
 					clientes[pos].id=0;                     // Se libera espacio en la cola
-                    nClientes--;
 					pthread_mutex_unlock(&colaClientes);
                     pthread_exit(NULL);
 				}
@@ -355,14 +358,14 @@ void *accionesCliente(void *arg){
 		sleep(3);
 		if(probabilidad(50) == 1 || puertasCerradas==1){	//Se queda en maquinas 
 			pthread_mutex_lock(&fichero);
-			writeLogMessage(pos+1, "El cliente vuelve a intentarlo en maquinas");
+			writeLogMessage(clientes[pos].id, "El cliente vuelve a intentarlo en maquinas");
 			pthread_mutex_unlock(&fichero);
 			accionesCliente((void*)&pos);	
       	}else{
 			pthread_mutex_lock(&colaClientes);
 			clientes[pos].tipo=clientes[pos].pretipo;   //vuelve a ponerse el tipo inicial
 			pthread_mutex_lock(&fichero);
-			writeLogMessage(pos+1, "El cliente se cansa de esperar a las maquinas y prueba suerte en las colas");
+			writeLogMessage(clientes[pos].id, "El cliente se cansa de esperar a las maquinas y prueba suerte en las colas");
 			pthread_mutex_unlock(&fichero);
             pthread_mutex_unlock(&colaClientes);
 			accionesCliente((void*)&pos);
@@ -373,30 +376,28 @@ void *accionesCliente(void *arg){
 			if(destino == 1){       //Va a maquinas				
 				clientes[pos].tipo = 2;
 				pthread_mutex_lock(&fichero);
-				writeLogMessage(pos+1, "El cliente se cansa de esperar y se va a maquinas");
+				writeLogMessage(clientes[pos].id, "El cliente se cansa de esperar y se va a maquinas");
                 pthread_mutex_unlock(&fichero);
                 pthread_mutex_unlock(&colaClientes);
 			    accionesCliente((void*)&pos);
 			}else if(destino == 2){		//Se marcha directamente
-                clientes[pos].id=0;
-                nClientes--;            
-           		pthread_mutex_lock(&fichero);
-           		writeLogMessage(pos+1,"El cliente se marcha directamente porque se cansa de esperar.");  //Escribe en el log
+                pthread_mutex_lock(&fichero);
+           		writeLogMessage(clientes[pos].id,"El cliente se marcha directamente porque se cansa de esperar.");  //Escribe en el log
             	pthread_mutex_unlock(&fichero);
+                clientes[pos].id=0;      
                 pthread_mutex_unlock(&colaClientes);
              	pthread_exit(NULL);
 			}else{
 				if(probabilidad(5)==1){        //Se va al baño						
-			        clientes[pos].id=0;
-                   	nClientes--;            
-         			pthread_mutex_lock(&fichero);
-                 	writeLogMessage(pos+1,"El cliente se marcha tras ir al baño y perder su sitio.");  //Escribe en el log
+			        pthread_mutex_lock(&fichero);
+                 	writeLogMessage(clientes[pos].id,"El cliente se marcha tras ir al baño y perder su sitio.");  //Escribe en el log
                     pthread_mutex_unlock(&fichero);
+                    clientes[pos].id=0;          
                     pthread_mutex_unlock(&colaClientes);
                    	pthread_exit(NULL);
 				}else{	//Se queda en la cola
 					pthread_mutex_lock(&fichero);
-					writeLogMessage(pos+1, "El cliente decide seguir esperando en la cola");
+					writeLogMessage(clientes[pos].id, "El cliente decide seguir esperando en la cola");
 					pthread_mutex_unlock(&fichero);
                     pthread_mutex_unlock(&colaClientes);
                     sleep(3);
@@ -411,29 +412,27 @@ void *accionesCliente(void *arg){
 		}		
 
         if(clientes[pos].expulsion==1){        // Se expulsa al cliente si no tiene el pasaporte vacunal
-            clientes[pos].id=0;
-            nClientes--;		
-            pthread_mutex_unlock(&colaClientes);
             pthread_mutex_lock(&fichero);
-            writeLogMessage(pos+1,"El cliente se marcha por no tener el certificado de vacunación");
+            writeLogMessage(clientes[pos].id,"El cliente se marcha por no tener el certificado de vacunación");
             pthread_mutex_unlock(&fichero);
+            clientes[pos].id=0;	
+            pthread_mutex_unlock(&colaClientes);
             pthread_exit(NULL);
         }
 		pthread_mutex_unlock(&colaClientes);
 
         if(probabilidad(30)==1 && puertasCerradas==0){  // Va a ascensor
 			pthread_mutex_lock(&fichero);
-			writeLogMessage(pos+1, "El cliente ha sido atendido y decide ir a los ascensores");
+			writeLogMessage(clientes[pos].id, "El cliente ha sido atendido y decide ir a los ascensores");
 			pthread_mutex_unlock(&fichero);
 			cogeAscensor(pos);
         }else{          //No va a ascensor
             pthread_mutex_lock(&colaClientes);
-            clientes[pos].id=0;
-            nClientes--;		
-            pthread_mutex_unlock(&colaClientes);
             pthread_mutex_lock(&fichero);
-            writeLogMessage(pos+1,"El cliente comunica que se va a su habitación.");
+            writeLogMessage(clientes[pos].id,"El cliente comunica que se va a su habitación.");
             pthread_mutex_unlock(&fichero);
+            clientes[pos].id=0;		
+            pthread_mutex_unlock(&colaClientes);
             pthread_exit(NULL);
         }
     }
@@ -448,7 +447,7 @@ void cogeAscensor(int pos){
 		pthread_mutex_unlock(&ascensor);
 		sleep(3);
 		pthread_mutex_lock(&fichero);
-		writeLogMessage(pos+1, "El cliente espera al ascensor.");
+		writeLogMessage(clientes[pos].id, "El cliente espera al ascensor.");
 		pthread_mutex_unlock(&fichero);
 		cogeAscensor(pos);		
 	}else{	//El ascensor no esta funcionando
@@ -456,7 +455,7 @@ void cogeAscensor(int pos){
 		if(nAscensor<6){	//Todavia no esta lleno
             pthread_mutex_unlock(&ascensor);
 		    pthread_mutex_lock(&fichero);
-		    writeLogMessage(pos+1, "El cliente entra en el ascensor.");
+		    writeLogMessage(clientes[pos].id, "El cliente entra en el ascensor.");
 		    pthread_mutex_unlock(&fichero);
             pthread_mutex_lock(&ascensor);
             pthread_cond_wait(&subirAscensor,&ascensor);
@@ -478,25 +477,21 @@ void cogeAscensor(int pos){
         nAscensor--;
         pthread_mutex_unlock(&ascensor);
 		pthread_mutex_lock(&fichero);
-		writeLogMessage(pos+1, "El cliente sale del ascensor.");
+		writeLogMessage(clientes[pos].id, "El cliente sale del ascensor.");
 		pthread_mutex_unlock(&fichero);
 
 		pthread_mutex_lock(&colaClientes);
         clientes[pos].id=0;
-        nClientes--;            //Se marcha el cliente
         pthread_mutex_unlock(&colaClientes);
         pthread_exit(NULL);
 	}
 }
 
-void clienteNormal(){
+void clienteNormal(){                               
     if(signal(SIGUSR1,clienteNormal)==SIG_ERR){
         perror("Error en la llamada a signal");
         exit(-1);
     }
-    		pthread_mutex_lock(&fichero);
-		writeLogMessage(1, "SEÑAL LLEGA");
-		pthread_mutex_unlock(&fichero);
     nuevoCliente(0);
 }
 
@@ -505,9 +500,6 @@ void clienteVip(){
         perror("Error en la llamada a signal");
         exit(-1);
     }
-        		pthread_mutex_lock(&fichero);
-		writeLogMessage(1, "SEÑAL LLEGA VIP");
-		pthread_mutex_unlock(&fichero);
     nuevoCliente(1);
 }
 
@@ -519,6 +511,9 @@ void modificaNMaquinas(){                               // Aumenta en 1 el núme
     pthread_mutex_lock(&maquinas);
     nMaquinas++;
     maquinasCheckIn=realloc(maquinasCheckIn,nMaquinas);
+    pthread_mutex_lock(&fichero);
+	writeLogMessage(nMaquinas, "Se ha aumentado en el número de máquinas");
+	pthread_mutex_unlock(&fichero);
     pthread_mutex_unlock(&maquinas);
 }
 
@@ -537,10 +532,13 @@ void modificaNClientes(){                               // Aumenta en 1 el núme
 	clientes[nClientesMax-1].pretipo=0;
 	clientes[nClientesMax-1].entrada=0;
     clientes[nClientesMax-1].expulsion=0;
+    pthread_mutex_lock(&fichero);
+	writeLogMessage(nClientesMax, "Se ha aumentado en el número de clientes");
+	pthread_mutex_unlock(&fichero);
     pthread_mutex_unlock(&colaClientes);
 }
 
-void terminar(){
+void terminar(){                            //Se cierran las puertas y se ignoran los nuevos clientes
     if(signal(SIGINT,terminar)==SIG_ERR){
         perror("Error en la llamada a signal");
         exit(-1);
@@ -551,12 +549,12 @@ void terminar(){
 
     pthread_mutex_lock(&ascensor);
     for(int i=0;i<nAscensor;i++){
-        pthread_cond_signal(&subirAscensor);        // Desbloquea a 1 cliente del ascensor
+        pthread_cond_signal(&subirAscensor);        // Desbloquea a los clientes del ascensor
     }
     pthread_mutex_unlock(&ascensor);
 }
 
-void despertarMain(){
+void despertarMain(){                           //Señal mandada por el último recepcionista que sale para despertar al main
     if(signal(SIGHUP,despertarMain)==SIG_ERR){
         perror("Error en la llamada a signal");
         exit(-1);
@@ -564,7 +562,7 @@ void despertarMain(){
 }
 
 
-int probabilidad(int probabilidad) {
+int probabilidad(int probabilidad) {        //Para calcular la probabilidad de que ocurra un evento
     srand(time(NULL));
     if((rand() % (100-1+1)+1)<=probabilidad){
         return 1;
@@ -572,7 +570,7 @@ int probabilidad(int probabilidad) {
     return 0;
 }
 
-int posibilidad2(int posibilidad1, int posibilidad2){
+int posibilidad2(int posibilidad1, int posibilidad2){   //Para calcular simultáneamente dos posibilidades
 	srand(time(NULL));
     
     int variable = rand() % (100-1+1)+1;
@@ -596,7 +594,7 @@ void writeLogMessage(int id, char *msg){
     char stnow[25];
     strftime(stnow,25,"%d/%m/%y %H:%M:%S",tlocal);
     //Escribe en el log
-    logFile= fopen("logs.txt","a");
+    logFile= fopen("registroTiempos.log","a");
     fprintf(logFile, "[%s] %d: %s\n",stnow,id,msg);
     fclose(logFile);
 }
