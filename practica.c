@@ -268,7 +268,7 @@ int main(int argc, char *argv[]){
     pthread_mutex_unlock(&fichero);
     return 0;
 }
-;
+
 void nuevoCliente(int tipo){
     int i;
     pthread_mutex_lock(&colaClientes);
@@ -284,13 +284,13 @@ void nuevoCliente(int tipo){
         nClientes++;
         nuevoCliente.id=nClientes;
         nuevoCliente.atendido=0;
+        nuevoCliente.pretipo=tipo;
         if(probabilidad(10)==1){
             tipo=2;
         }
         nuevoCliente.tipo=tipo;
         nuevoCliente.ascensor=0;
-	    nuevoCliente.pretipo=0;
-	    nuevoCliente.entrada=0;
+	nuevoCliente.entrada=0;
         nuevoCliente.expulsion=0;
         clientes[i]=nuevoCliente;
 
